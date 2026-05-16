@@ -1,4 +1,8 @@
-export { architectureAnalyzer } from './analyzers/architecture.js';
+export {
+  architectureAnalyzer,
+  depsAnalyzer,
+  gitHistoryAnalyzer,
+} from './analyzers/index.js';
 export type { Analyzer, AnalyzerOptions } from './analyzers/types.js';
 export {
   mermaidRenderer,

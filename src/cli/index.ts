@@ -3,7 +3,12 @@ import { cac } from 'cac';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import pc from 'picocolors';
-import { architectureAnalyzer } from '../analyzers/architecture.js';
+import {
+  architectureAnalyzer,
+  depsAnalyzer,
+  gitHistoryAnalyzer,
+} from '../analyzers/index.js';
+import type { Analyzer } from '../analyzers/types.js';
 import { mermaidRenderer } from '../renderers/mermaid.js';
 import { writeViewpointMarkdown } from '../inject/markdown.js';
 import { injectIntoReadme } from '../inject/readme.js';
@@ -12,6 +17,12 @@ import { readHeadCommit } from '../util/git.js';
 
 const VERSION = readPackageVersion();
 
+const ANALYZERS: Record<string, Analyzer> = {
+  architecture: architectureAnalyzer,
+  deps: depsAnalyzer,
+  'git-history': gitHistoryAnalyzer,
+};
+
 const cli = cac('repolore');
 
 cli
@@ -19,9 +30,11 @@ cli
   .option('-o, --output <dir>', 'Output directory (relative to repo)', {
     default: 'docs/diagrams',
   })
-  .option('--viewpoints <list>', 'Comma-separated viewpoint IDs', {
-    default: 'architecture',
-  })
+  .option(
+    '--viewpoints <list>',
+    'Comma-separated viewpoint IDs: architecture, deps, git-history',
+    { default: 'architecture' }
+  )
   .option('--format <fmt>', 'Output format (mermaid)', { default: 'mermaid' })
   .option('--max-nodes <n>', 'Cap nodes per diagram', { default: 100 })
   .option('--max-edges <n>', 'Cap edges per diagram', { default: 200 })
@@ -34,7 +47,8 @@ cli
     const outputDir = path.resolve(repoPath, String(opts.output));
     const requested = String(opts.viewpoints)
       .split(',')
-      .map((s) => s.trim());
+      .map((s) => s.trim())
+      .filter(Boolean);
     const quiet = Boolean(opts.quiet);
 
     const log = (msg: string) => {
@@ -45,23 +59,33 @@ cli
     log(pc.dim(`repo: ${repoPath}`));
 
     const viewpoints = [];
-    if (requested.includes('architecture')) {
-      log(pc.cyan('→ analyzing architecture…'));
-      const vp = await architectureAnalyzer.analyze({ repoPath });
+    const unknown: string[] = [];
+    for (const id of requested) {
+      const analyzer = ANALYZERS[id];
+      if (!analyzer) {
+        unknown.push(id);
+        continue;
+      }
+      log(pc.cyan(`→ analyzing ${id}…`));
+      const vp = await analyzer.analyze({ repoPath });
       viewpoints.push(vp);
       log(
         pc.dim(
-          `  ${vp.graph.nodes.length} modules, ${vp.graph.edges.length} edges`
+          `  ${vp.graph.nodes.length} nodes, ${vp.graph.edges.length} edges`
+        )
+      );
+    }
+
+    if (unknown.length > 0) {
+      console.error(
+        pc.yellow(
+          `Unknown viewpoint(s) skipped: ${unknown.join(', ')}. Available: ${Object.keys(ANALYZERS).join(', ')}.`
         )
       );
     }
 
     if (viewpoints.length === 0) {
-      console.error(
-        pc.red(
-          `No supported viewpoints in --viewpoints (got: ${requested.join(', ')}). Currently supported: architecture.`
-        )
-      );
+      console.error(pc.red('No viewpoints analyzed. Nothing to write.'));
       process.exit(1);
     }
 
@@ -95,10 +119,15 @@ cli
     }
   });
 
-cli.command('check', 'Stale-check diagrams against current HEAD (not yet implemented)').action(() => {
-  console.error(pc.yellow('check: not yet implemented (planned for v0.2)'));
-  process.exit(1);
-});
+cli
+  .command(
+    'check',
+    'Stale-check diagrams against current HEAD (not yet implemented)'
+  )
+  .action(() => {
+    console.error(pc.yellow('check: not yet implemented'));
+    process.exit(1);
+  });
 
 cli.version(VERSION);
 cli.help();

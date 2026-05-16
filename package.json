@@ -1,6 +1,6 @@
 {
   "name": "repolore",
-  "version": "0.1.0-alpha.1",
+  "version": "0.2.0-alpha.0",
   "description": "Visualize a Git repository from multiple angles. Generates GitHub-native Mermaid (and later SVG, DOT, Wiki Markdown) from one command, with optional LLM curation.",
   "type": "module",
   "bin": {
