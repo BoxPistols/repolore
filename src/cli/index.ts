@@ -14,6 +14,7 @@ import { writeViewpointMarkdown } from '../inject/markdown.js';
 import { injectIntoReadme } from '../inject/readme.js';
 import { readPackageVersion } from '../util/version.js';
 import { readHeadCommit } from '../util/git.js';
+import { getCurator, CuratorError } from '../curators/index.js';
 
 const VERSION = readPackageVersion();
 
@@ -39,6 +40,15 @@ cli
   .option('--max-nodes <n>', 'Cap nodes per diagram', { default: 100 })
   .option('--max-edges <n>', 'Cap edges per diagram', { default: 200 })
   .option('--inject <file>', 'Inject diagrams into a Markdown file at markers')
+  .option(
+    '--curate <provider>',
+    'LLM curator: none | anthropic (default none; sends node metadata to provider)',
+    { default: 'none' }
+  )
+  .option('--curate-model <name>', 'Provider-specific model name')
+  .option('--budget-usd <n>', 'Max LLM spend per run; hard-fail above', {
+    default: 0.1,
+  })
   .option('--quiet', 'Suppress non-error output')
   .action(async (pathArg: string | undefined, opts: Record<string, unknown>) => {
     const repoPath = path.resolve(
@@ -89,11 +99,58 @@ cli
       process.exit(1);
     }
 
+    const curatorId = String(opts.curate);
+    const curator = getCurator(curatorId);
+    if (!curator) {
+      console.error(
+        pc.red(
+          `Unknown curator: ${curatorId}. Available: none, anthropic (openai/ollama planned).`
+        )
+      );
+      process.exit(1);
+    }
+    if (curator.isRemote) {
+      log(
+        pc.yellow(
+          `⚠ --curate ${curator.id}: module/file names will be sent to the ${curator.id} API. Set BUDGET=$${Number(opts.budgetUsd).toFixed(2)} cap.`
+        )
+      );
+    }
+
+    const curated = [];
+    let totalCostUsd = 0;
+    for (const vp of viewpoints) {
+      try {
+        const result = await curator.curate(vp, {
+          budgetUsd: Number(opts.budgetUsd),
+          model: opts.curateModel ? String(opts.curateModel) : undefined,
+        });
+        curated.push(result.viewpoint);
+        if (result.usage) {
+          totalCostUsd += result.usage.estimatedCostUsd;
+          log(
+            pc.dim(
+              `  curated ${vp.id}: $${result.usage.estimatedCostUsd.toFixed(4)} (${result.usage.inputTokens}in/${result.usage.outputTokens}out)`
+            )
+          );
+        }
+      } catch (err) {
+        if (err instanceof CuratorError) {
+          console.error(pc.red(`curator error on ${vp.id}: ${err.message}`));
+          process.exit(2);
+        }
+        throw err;
+      }
+    }
+    if (totalCostUsd > 0) {
+      log(pc.dim(`  total LLM spend: $${totalCostUsd.toFixed(4)}`));
+    }
+
     await fs.mkdir(outputDir, { recursive: true });
     const commit = await readHeadCommit(repoPath);
     const meta = { commit, toolVersion: VERSION };
 
-    const rendered = viewpoints.map((vp) => ({
+    const rendered = curated.map((vp) => ({
       viewpoint: vp,
       rendered: mermaidRenderer.render(vp, {
         maxNodes: Number(opts.maxNodes),

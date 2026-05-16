@@ -24,4 +24,18 @@ export {
   END_MARKER,
   type InjectionBlock,
 } from './inject/readme.js';
+export {
+  CURATORS,
+  getCurator,
+  noneCurator,
+  anthropicCurator,
+  CuratorError,
+} from './curators/index.js';
+export type {
+  Curator,
+  CuratorId,
+  CuratorOptions,
+  CuratorResult,
+  CuratorUsage,
+} from './curators/index.js';
 export type * from './ir/types.js';

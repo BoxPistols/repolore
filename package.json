@@ -1,6 +1,6 @@
 {
   "name": "repolore",
-  "version": "0.2.0-alpha.0",
+  "version": "0.3.0-alpha.0",
   "description": "Visualize a Git repository from multiple angles. Generates GitHub-native Mermaid (and later SVG, DOT, Wiki Markdown) from one command, with optional LLM curation.",
   "type": "module",
   "bin": {
@@ -52,6 +52,7 @@
   },
   "homepage": "https://github.com/BoxPistols/repolore#readme",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0",
     "cac": "^6.7.14",
     "picocolors": "^1.1.1",
     "ts-morph": "^24.0.0"
