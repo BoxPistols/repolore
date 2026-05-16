@@ -5,6 +5,7 @@ import * as fs from 'node:fs/promises';
 import pc from 'picocolors';
 import {
   architectureAnalyzer,
+  architectureHistoryAnalyzer,
   depsAnalyzer,
   gitHistoryAnalyzer,
   pythonAnalyzer,
@@ -23,6 +24,7 @@ const VERSION = readPackageVersion();
 
 const ANALYZERS: Record<string, Analyzer> = {
   architecture: architectureAnalyzer,
+  'architecture-history': architectureHistoryAnalyzer,
   deps: depsAnalyzer,
   'git-history': gitHistoryAnalyzer,
   python: pythonAnalyzer,
@@ -47,7 +49,7 @@ cli
   })
   .option(
     '--viewpoints <list>',
-    'Viewpoint IDs (comma): architecture, deps, git-history, python',
+    'Viewpoint IDs (comma): architecture, architecture-history, deps, git-history, python',
     { default: 'architecture' }
   )
   .option('--format <list>', 'Output formats (comma): mermaid, dot', {

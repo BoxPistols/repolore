@@ -12,6 +12,7 @@ export interface SourceInfo {
 
 export type ViewpointId =
   | 'architecture'
+  | 'architecture-history'
   | 'deps'
   | 'git-history'
   | 'module-relations'

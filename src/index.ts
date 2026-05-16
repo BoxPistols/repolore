@@ -1,5 +1,6 @@
 export {
   architectureAnalyzer,
+  architectureHistoryAnalyzer,
   depsAnalyzer,
   gitHistoryAnalyzer,
   pythonAnalyzer,
