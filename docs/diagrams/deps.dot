@@ -1,0 +1,24 @@
+digraph G {
+    rankdir=LR;
+    node [shape=box, fontname="Helvetica"];
+    edge [fontname="Helvetica", fontsize=10];
+    "repolore" [label="repolore"];
+    "@anthropic-ai/sdk" [label="@anthropic-ai/sdk"];
+    "cac" [label="cac"];
+    "picocolors" [label="picocolors"];
+    "ts-morph" [label="ts-morph"];
+    "@types/node" [label="@types/node"];
+    "tsup" [label="tsup"];
+    "tsx" [label="tsx"];
+    "typescript" [label="typescript"];
+    "vitest" [label="vitest"];
+    "repolore" -> "@anthropic-ai/sdk";
+    "repolore" -> "cac";
+    "repolore" -> "picocolors";
+    "repolore" -> "ts-morph";
+    "repolore" -> "@types/node";
+    "repolore" -> "tsup";
+    "repolore" -> "tsx";
+    "repolore" -> "typescript";
+    "repolore" -> "vitest";
+}

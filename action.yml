@@ -1,0 +1,69 @@
+name: 'repolore'
+description: 'Visualize a Git repository with Mermaid architecture, dependency, and git-history diagrams. Embeds them in your README via injection markers.'
+author: 'BoxPistols'
+branding:
+  icon: 'map'
+  color: 'purple'
+
+inputs:
+  path:
+    description: 'Repository path to analyze (relative to GITHUB_WORKSPACE)'
+    required: false
+    default: '.'
+  viewpoints:
+    description: 'Comma-separated viewpoint IDs: architecture, deps, git-history, python'
+    required: false
+    default: 'architecture'
+  format:
+    description: 'Comma-separated output formats: mermaid, dot'
+    required: false
+    default: 'mermaid'
+  output:
+    description: 'Output directory for generated diagrams (relative to path)'
+    required: false
+    default: 'docs/diagrams'
+  inject:
+    description: 'Markdown file to inject Mermaid diagrams into (relative to path)'
+    required: false
+  curate:
+    description: 'LLM curator: none | anthropic (BYOK; requires ANTHROPIC_API_KEY env)'
+    required: false
+    default: 'none'
+  budget-usd:
+    description: 'Max LLM spend per run; the action fails if pre-call estimate exceeds'
+    required: false
+    default: '0.10'
+  ref:
+    description: 'repolore source ref to install from GitHub (until npm publish)'
+    required: false
+    default: 'main'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install repolore from GitHub
+      shell: bash
+      run: |
+        npm install --no-save "github:BoxPistols/repolore#${{ inputs.ref }}"
+
+    - name: Run repolore
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      env:
+        ANTHROPIC_API_KEY: ${{ env.ANTHROPIC_API_KEY }}
+      run: |
+        set -e
+        ARGS=("--viewpoints" "${{ inputs.viewpoints }}")
+        ARGS+=("--format" "${{ inputs.format }}")
+        ARGS+=("--output" "${{ inputs.output }}")
+        ARGS+=("--curate" "${{ inputs.curate }}")
+        ARGS+=("--budget-usd" "${{ inputs.budget-usd }}")
+        if [ -n "${{ inputs.inject }}" ]; then
+          ARGS+=("--inject" "${{ inputs.inject }}")
+        fi
+        node "$GITHUB_WORKSPACE/node_modules/repolore/dist/cli.js" "${ARGS[@]}"

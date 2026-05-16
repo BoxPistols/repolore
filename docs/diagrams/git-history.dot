@@ -1,0 +1,24 @@
+digraph G {
+    rankdir=LR;
+    node [shape=box, fontname="Helvetica"];
+    edge [fontname="Helvetica", fontsize=10];
+    "README.md" [label="README.md\n4 commits\ntop: a.ito"];
+    "docs" [label="docs\n4 commits\ntop: a.ito"];
+    "package.json" [label="package.json\n4 commits\ntop: a.ito"];
+    "tests" [label="tests\n4 commits\ntop: a.ito"];
+    "cli" [label="cli\n3 commits\ntop: a.ito"];
+    "index.ts" [label="index.ts\n3 commits\ntop: a.ito"];
+    "analyzers" [label="analyzers\n3 commits\ntop: a.ito"];
+    "pnpm-lock.yaml" [label="pnpm-lock.yaml\n2 commits\ntop: a.ito"];
+    "curators" [label="curators\n1 commits\ntop: a.ito"];
+    ".github" [label=".github\n1 commits\ntop: a.ito"];
+    ".gitignore" [label=".gitignore\n1 commits\ntop: a.ito"];
+    "LICENSE" [label="LICENSE\n1 commits\ntop: a.ito"];
+    "inject" [label="inject\n1 commits\ntop: a.ito"];
+    "ir" [label="ir\n1 commits\ntop: a.ito"];
+    "renderers" [label="renderers\n1 commits\ntop: a.ito"];
+    "util" [label="util\n1 commits\ntop: a.ito"];
+    "tsconfig.json" [label="tsconfig.json\n1 commits\ntop: a.ito"];
+    "tsup.config.ts" [label="tsup.config.ts\n1 commits\ntop: a.ito"];
+    "vitest.config.ts" [label="vitest.config.ts\n1 commits\ntop: a.ito"];
+}

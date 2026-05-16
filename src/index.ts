@@ -2,12 +2,14 @@ export {
   architectureAnalyzer,
   depsAnalyzer,
   gitHistoryAnalyzer,
+  pythonAnalyzer,
 } from './analyzers/index.js';
 export type { Analyzer, AnalyzerOptions } from './analyzers/types.js';
 export {
   mermaidRenderer,
   MERMAID_DEFAULTS,
-} from './renderers/mermaid.js';
+  dotRenderer,
+} from './renderers/index.js';
 export type {
   Renderer,
   RendererOptions,

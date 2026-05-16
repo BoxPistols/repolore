@@ -15,7 +15,8 @@ export type ViewpointId =
   | 'deps'
   | 'git-history'
   | 'module-relations'
-  | 'api-surface';
+  | 'api-surface'
+  | 'python';
 
 export interface Viewpoint {
   id: ViewpointId;

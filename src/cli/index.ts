@@ -7,9 +7,12 @@ import {
   architectureAnalyzer,
   depsAnalyzer,
   gitHistoryAnalyzer,
+  pythonAnalyzer,
 } from '../analyzers/index.js';
 import type { Analyzer } from '../analyzers/types.js';
 import { mermaidRenderer } from '../renderers/mermaid.js';
+import { dotRenderer } from '../renderers/dot.js';
+import type { Renderer } from '../renderers/types.js';
 import { writeViewpointMarkdown } from '../inject/markdown.js';
 import { injectIntoReadme } from '../inject/readme.js';
 import { readPackageVersion } from '../util/version.js';
@@ -22,6 +25,17 @@ const ANALYZERS: Record<string, Analyzer> = {
   architecture: architectureAnalyzer,
   deps: depsAnalyzer,
   'git-history': gitHistoryAnalyzer,
+  python: pythonAnalyzer,
+};
+
+const RENDERERS: Record<string, Renderer> = {
+  mermaid: mermaidRenderer,
+  dot: dotRenderer,
+};
+
+const FORMAT_EXTENSIONS: Record<string, string> = {
+  mermaid: '.md',
+  dot: '.dot',
 };
 
 const cli = cac('repolore');
@@ -33,13 +47,18 @@ cli
   })
   .option(
     '--viewpoints <list>',
-    'Comma-separated viewpoint IDs: architecture, deps, git-history',
+    'Viewpoint IDs (comma): architecture, deps, git-history, python',
     { default: 'architecture' }
   )
-  .option('--format <fmt>', 'Output format (mermaid)', { default: 'mermaid' })
+  .option('--format <list>', 'Output formats (comma): mermaid, dot', {
+    default: 'mermaid',
+  })
   .option('--max-nodes <n>', 'Cap nodes per diagram', { default: 100 })
   .option('--max-edges <n>', 'Cap edges per diagram', { default: 200 })
-  .option('--inject <file>', 'Inject diagrams into a Markdown file at markers')
+  .option(
+    '--inject <file>',
+    'Inject Mermaid diagrams into a Markdown file at markers'
+  )
   .option(
     '--curate <provider>',
     'LLM curator: none | anthropic (default none; sends node metadata to provider)',
@@ -59,6 +78,10 @@ cli
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
+    const formats = String(opts.format)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const quiet = Boolean(opts.quiet);
 
     const log = (msg: string) => {
@@ -69,11 +92,11 @@ cli
     log(pc.dim(`repo: ${repoPath}`));
 
     const viewpoints = [];
-    const unknown: string[] = [];
+    const unknownViews: string[] = [];
     for (const id of requested) {
       const analyzer = ANALYZERS[id];
       if (!analyzer) {
-        unknown.push(id);
+        unknownViews.push(id);
         continue;
       }
       log(pc.cyan(`→ analyzing ${id}…`));
@@ -86,12 +109,28 @@ cli
       );
     }
 
-    if (unknown.length > 0) {
+    if (unknownViews.length > 0) {
       console.error(
         pc.yellow(
-          `Unknown viewpoint(s) skipped: ${unknown.join(', ')}. Available: ${Object.keys(ANALYZERS).join(', ')}.`
+          `Unknown viewpoint(s) skipped: ${unknownViews.join(', ')}. Available: ${Object.keys(ANALYZERS).join(', ')}.`
         )
       );
+    }
+
+    const activeRenderers = formats
+      .map((f) => RENDERERS[f])
+      .filter((r): r is Renderer => Boolean(r));
+    const unknownFormats = formats.filter((f) => !RENDERERS[f]);
+    if (unknownFormats.length > 0) {
+      console.error(
+        pc.yellow(
+          `Unknown format(s) skipped: ${unknownFormats.join(', ')}. Available: ${Object.keys(RENDERERS).join(', ')}.`
+        )
+      );
+    }
+    if (activeRenderers.length === 0) {
+      console.error(pc.red('No valid output formats. Nothing to write.'));
+      process.exit(1);
     }
 
     if (viewpoints.length === 0) {
@@ -112,7 +151,7 @@ cli
     if (curator.isRemote) {
       log(
         pc.yellow(
-          `⚠ --curate ${curator.id}: module/file names will be sent to the ${curator.id} API. Set BUDGET=$${Number(opts.budgetUsd).toFixed(2)} cap.`
+          `⚠ --curate ${curator.id}: module/file names will be sent to the ${curator.id} API. Budget cap: $${Number(opts.budgetUsd).toFixed(2)}.`
         )
       );
     }
@@ -150,29 +189,47 @@ cli
     const commit = await readHeadCommit(repoPath);
     const meta = { commit, toolVersion: VERSION };
 
-    const rendered = curated.map((vp) => ({
-      viewpoint: vp,
-      rendered: mermaidRenderer.render(vp, {
-        maxNodes: Number(opts.maxNodes),
-        maxEdges: Number(opts.maxEdges),
-      }),
-    }));
+    // Render each (viewpoint × format) pair.
+    const renderedForMermaidInject: Array<{
+      viewpoint: (typeof curated)[number];
+      rendered: ReturnType<Renderer['render']>;
+    }> = [];
 
-    for (const { viewpoint, rendered: diagram } of rendered) {
-      const file = path.join(outputDir, `${viewpoint.id}.md`);
-      await writeViewpointMarkdown(file, viewpoint, diagram, meta);
-      log(
-        pc.green(`✓ ${path.relative(repoPath, file)}`) +
-          pc.dim(
-            ` (${diagram.stats.nodeCount}n/${diagram.stats.edgeCount}e/${diagram.stats.byteSize}B${diagram.truncated ? ', truncated' : ''})`
-          )
-      );
+    for (const vp of curated) {
+      for (const renderer of activeRenderers) {
+        const diagram = renderer.render(vp, {
+          maxNodes: Number(opts.maxNodes),
+          maxEdges: Number(opts.maxEdges),
+        });
+        const ext = FORMAT_EXTENSIONS[renderer.format] ?? '.txt';
+        const file = path.join(outputDir, `${vp.id}${ext}`);
+        if (renderer.format === 'mermaid') {
+          await writeViewpointMarkdown(file, vp, diagram, meta);
+          renderedForMermaidInject.push({ viewpoint: vp, rendered: diagram });
+        } else {
+          await fs.writeFile(file, diagram.source, 'utf-8');
+        }
+        log(
+          pc.green(`✓ ${path.relative(repoPath, file)}`) +
+            pc.dim(
+              ` [${renderer.format}] (${diagram.stats.nodeCount}n/${diagram.stats.edgeCount}e/${diagram.stats.byteSize}B${diagram.truncated ? ', truncated' : ''})`
+            )
+        );
+      }
     }
 
     if (opts.inject) {
-      const target = path.resolve(repoPath, String(opts.inject));
-      await injectIntoReadme(target, rendered, meta);
-      log(pc.green(`✓ injected into ${path.relative(repoPath, target)}`));
+      if (renderedForMermaidInject.length === 0) {
+        console.error(
+          pc.yellow(
+            '--inject requires mermaid format. Add `mermaid` to --format.'
+          )
+        );
+      } else {
+        const target = path.resolve(repoPath, String(opts.inject));
+        await injectIntoReadme(target, renderedForMermaidInject, meta);
+        log(pc.green(`✓ injected into ${path.relative(repoPath, target)}`));
+      }
     }
   });
 

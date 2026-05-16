@@ -1,0 +1,28 @@
+digraph G {
+    rankdir=LR;
+    node [shape=box, fontname="Helvetica"];
+    edge [fontname="Helvetica", fontsize=10];
+    "index" [label="index"];
+    "analyzers" [label="analyzers"];
+    "cli" [label="cli"];
+    "curators" [label="curators"];
+    "inject" [label="inject"];
+    "ir" [label="ir"];
+    "renderers" [label="renderers"];
+    "util" [label="util"];
+    "index" -> "analyzers" [label="2"];
+    "index" -> "renderers" [label="2"];
+    "index" -> "inject" [label="2"];
+    "index" -> "curators" [label="2"];
+    "index" -> "ir";
+    "analyzers" -> "ir" [label="5"];
+    "cli" -> "analyzers" [label="2"];
+    "cli" -> "renderers" [label="3"];
+    "cli" -> "inject" [label="2"];
+    "cli" -> "util" [label="2"];
+    "cli" -> "curators";
+    "curators" -> "ir" [label="2"];
+    "inject" -> "ir" [label="2"];
+    "inject" -> "renderers" [label="2"];
+    "renderers" -> "ir" [label="3"];
+}
