@@ -14,6 +14,32 @@ const FALLBACK_GLOBS = [
   'src/**/*.mjs',
 ];
 
+// Generated / third-party dirs. Even if tsconfig `include` pulls them in
+// (e.g. Next.js's `.next/types/**`), they must not appear as modules.
+const EXCLUDED_DIR_NAMES = new Set([
+  'node_modules',
+  '.next',
+  '.nuxt',
+  '.svelte-kit',
+  '.vercel',
+  '.cache',
+  '.turbo',
+  '.vite',
+  '.parcel-cache',
+  '.output',
+  'dist',
+  'build',
+  'out',
+  'coverage',
+  '.git',
+]);
+
+function isExcludedPath(relativePath: string): boolean {
+  return relativePath
+    .split(path.sep)
+    .some((segment) => EXCLUDED_DIR_NAMES.has(segment));
+}
+
 export const architectureAnalyzer: Analyzer = {
   id: 'architecture',
   async analyze(opts: AnalyzerOptions): Promise<Viewpoint> {
@@ -26,9 +52,8 @@ export const architectureAnalyzer: Analyzer = {
 
     for (const sf of sourceFiles) {
       const filePath = sf.getFilePath();
-      if (filePath.includes('node_modules')) continue;
       const relPath = path.relative(repoPath, filePath);
-      if (relPath.startsWith('..')) continue;
+      if (relPath.startsWith('..') || isExcludedPath(relPath)) continue;
       const moduleName = extractModule(relPath);
       moduleByFile.set(filePath, moduleName);
       modules.add(moduleName);
